@@ -1,0 +1,17 @@
+
+*.class
+*.log
+
+
+# sbt specific
+.cache/
+.history/
+.lib/
+.metals/
+dist/*
+target/
+project/target/*
+project/plugins/project/
+
+
+\.scalafmt\.conf

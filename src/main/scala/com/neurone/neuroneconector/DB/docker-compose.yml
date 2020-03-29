@@ -1,0 +1,14 @@
+version: '3.1'
+
+services:
+  mongo:
+    image: mongo:latest
+    command:
+      - --storageEngine=wiredTiger
+    volumes:
+      - '/home/mongoDb/data:/data/db'
+    ports:
+      - '27017:27017'
+    expose:
+      - 27017
+  
