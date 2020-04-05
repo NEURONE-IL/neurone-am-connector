@@ -47,7 +47,7 @@ package object service {
                   case "pagestay" => getTotalPageStayService(ti)(tf)(username)
                   case "writingtime" => getWritingTimeService(ti)(tf)(username)
                   case "modquery" => getTotalModQueryService(ti)(tf)(username)
-                  case "entropy" => getAverageQueryEntropyService(ti)(tf)(usern)
+                  case "entropy" => getAverageQueryEntropyService(ti)(tf)(username)
                 }
 
               })
