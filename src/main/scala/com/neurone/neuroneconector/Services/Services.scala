@@ -45,6 +45,9 @@ package object service {
                     getActiveOrRelevantBmService(ti)(tf)(None)(username)
                   case "score"    => getSearchScoreService(ti)(tf)(username)
                   case "pagestay" => getTotalPageStayService(ti)(tf)(username)
+                  case "writingtime" => getWritingTimeService(ti)(tf)(username)
+                  case "modquery" => getTotalModQueryService(ti)(tf)(username)
+                  case "entropy" => getAverageQueryEntropyService(ti)(tf)(usern)
                 }
 
               })

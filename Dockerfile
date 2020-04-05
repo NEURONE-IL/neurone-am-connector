@@ -34,7 +34,6 @@ WORKDIR /neurone-conector
 COPY build.sbt .
 COPY project project
 COPY src src
-COPY .env .env
 RUN sbt stage
 
 
