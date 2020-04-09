@@ -1,6 +1,6 @@
 # Neurone Am Connector
 
-Neurone-am-connector is part of the Neurone-AM (active monitoring) solution, compose of [neurone-am-coordinator](https://github.com/NEURONE-IL/neurone-am-coordinator.git) and [neurone-am-visualization](https://github.com/NEURONE-IL/neurone-am-visualization.git) also. All three components interact with each other to deliver real-time updated metrics over a persistent connection and provides tools for monitoring all users of [NEURONE](https://github.com/NEURONE-IL/neurone) search engine.
+Neurone-am-connector is part of the Neurone-AM (active monitoring) solution, compose of [neurone-am-coordinator](https://github.com/NEURONE-IL/neurone-am-coordinator.git) and [neurone-am-visualization](https://github.com/NEURONE-IL/neurone-am-visualization.git) also. All three components interact with each other to deliver real-time updated metrics over a persistent connection and provides tools for monitoring all users of [NEURONE](https://github.com/NEURONE-IL/neurone) search engine.  To deploy all components together go to [neurone-am-deployment](https://github.com/NEURONE-IL/neurone-am-deployment.git) repository.
 
 This component is a API REST that provides a set of services to calculate behavioral and performance metrics for participans of NEURONE search engine. Therefore, it interact directly with NEURONE database to get the all necesary data for the process. 
 
@@ -150,6 +150,17 @@ To bundle the code sbt-native-package is used. Run the next instruccions:
 
 #### Configuration
 To Define the Mongo DB and Mongo URL (Production and Development) as well as the API port the application.conf file must be changed. It is located in `${project_root}/src/main/resources/application.conf`. This is a example of that file.
+
+```conf
+mongo {
+    MONGO_URL="mongodb://username:password@localhost:27017/?authSource=db_name"
+    MONGO_DB="db_name"
+}
+
+app{
+    PORT="8081"
+}
+```
 
 ## License
 

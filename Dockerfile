@@ -46,7 +46,6 @@ COPY --from=build /neurone-conector/target/universal/stage stage
 
 
 WORKDIR /stage/bin/
-COPY .env .env
 RUN ls
 RUN apk add --no-cache --upgrade bash
 
