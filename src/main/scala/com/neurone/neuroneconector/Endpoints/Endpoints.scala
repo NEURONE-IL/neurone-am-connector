@@ -25,8 +25,8 @@ package object endpoints {
   def packageResult(username: String, metricName: String, result: Double) = {
     val json: Json = Json.obj(
       ("username", Json.fromString(username)),
-      (metricName, Json.fromDoubleOrNull(result)),
-      ("metric", Json.fromString(metricName))
+      ("value", Json.fromDoubleOrNull(result)),
+      ("type", Json.fromString(metricName))
     )
     json
   }
@@ -81,13 +81,15 @@ package object endpoints {
   val getTotalCoverEndpoint = get(
     "totalcover" :: standardParamsForOneUser
   ) { (username: String, ti: Option[Int], tf: Option[Int]) =>
-    FuturePool.unboundedPool {
+    FuturePool.unboundedPool{
+
       val totalCover: Tuple2[String, Double] =
         getTotalCoverService(ti)(tf)(username)
       val jsonResult: Json =
         packageResult(username, "totalcover", totalCover._2)
       Ok(jsonResult)
     }
+ 
   }.handle {
     case e: Error.NotPresent => BadRequest(e)
   }
@@ -631,6 +633,7 @@ package object endpoints {
   val getWritingTimeForAllEndpoint = get("writingtime" :: standardParams) {
     (ti: Option[Int], tf: Option[Int]) =>
       FuturePool.unboundedPool {
+        
         val results = getWritingTimeServiceForAll(ti, tf)
         val jsonResults = packageResults(results, "writingtime")
         Ok(jsonResults)
