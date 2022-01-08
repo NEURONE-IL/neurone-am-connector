@@ -21,7 +21,7 @@ import org.mongodb.scala.bson.conversions.Bson
 package object serviceAll {
 
   // Function to parallelize a metric calculation for all participants with actor model
-  val makeActors = (function: (String) => Tuple2[String, Double]) => {
+  val makeActors = (function: (String) => Tuple4[String, Double,Long,Long]) => {
 
     val usersnames = getUsernames()
     val system = ActorSystem("neuroneSystem")
@@ -32,7 +32,7 @@ package object serviceAll {
   }
 
   //Function to calculate metric value for all participal in secuential mode
-  val makeMonolith = (function: (String) => Tuple2[String, Double]) => {
+  val makeMonolith = (function: (String) => Tuple4[String, Double,Long,Long]) => {
     val usersnames = getUsernames()
     usersnames.map(u => function(u))
   }
@@ -41,7 +41,7 @@ package object serviceAll {
   def getTotalCoverServiceForAll(
       ti: Option[Int],
       tf: Option[Int]
-  ): Seq[Tuple2[String, Double]] = {
+  ): Seq[Tuple4[String, Double,Long,Long]] = {
     makeActors(getTotalCoverService(ti)(tf))
     //makeMonolith(getTotalCoverService(ti)(tf))
   }
@@ -51,7 +51,7 @@ package object serviceAll {
       ti: Option[Int],
       tf: Option[Int],
       relevant: Option[Boolean]
-  ): Seq[Tuple2[String, Double]] = {
+  ): Seq[Tuple4[String, Double,Long,Long]] = {
     makeActors(getActiveOrRelevantBmService(ti)(tf)(relevant))
     //makeMonolith(getActiveOrRelevantBmService(ti)(tf)(relevant))
   }
@@ -61,7 +61,7 @@ package object serviceAll {
       limitTime: Int,
       ti: Option[Int],
       tf: Option[Int]
-  ): Seq[Tuple2[String, Double]] = {
+  ): Seq[Tuple4[String, Double,Long,Long]] = {
 
     makeActors(getUsfCoverService(ti)(tf)(limitTime))
     //makeMonolith(getUsfCoverService(ti)(tf)(limitTime))

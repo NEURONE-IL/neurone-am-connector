@@ -19,14 +19,14 @@ import org.mongodb.scala.bson.conversions.Bson
 object Worker {
   def props(
       username: String,
-      f: (String) => Tuple2[String, Double]
+      f: (String) => Tuple4[String, Double,Long,Long]
   ): Props =
     Props(new Worker(username, f))
   case object Execute
 }
 
 //Class definition of worker
-class Worker(username: String, f: (String) => Tuple2[String, Double])
+class Worker(username: String, f: (String) => Tuple4[String, Double,Long,Long])
     extends Actor {
   import Worker._
 
@@ -50,7 +50,7 @@ package object actorFunctions {
   //Function to run a Actor instance
   val runActors =
     (system: ActorSystem) =>
-      (function: (String) => Tuple2[String, Double]) =>
+      (function: (String) => Tuple4[String, Double,Long,Long]) =>
         (username: String) => {
 
           implicit val timeout = Timeout(Duration(100, TimeUnit.SECONDS))
@@ -60,11 +60,11 @@ package object actorFunctions {
               Worker.props(username, function),
               name = name
             )
-          ask(myActor, Execute).mapTo[Tuple2[String, Double]]
+          ask(myActor, Execute).mapTo[Tuple4[String, Double,Long,Long]]
         }
 
   //Function to call actor execution for all participants
-  val parrallelizeWithActors = (function: (String) => Tuple2[String, Double]) =>
+  val parrallelizeWithActors = (function: (String) => Tuple4[String, Double,Long,Long]) =>
     (system: ActorSystem) =>
       (usersnames: Seq[String]) => {
         val results =

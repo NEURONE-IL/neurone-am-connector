@@ -11,16 +11,59 @@ import io.circe.generic.auto._
 import com.neurone.neuroneconector.services.service._
 import com.neurone.neuroneconector.services.serviceAll._
 import com.twitter.util.{FuturePool, Future}
-import java.util.concurrent._
-import scala.concurrent._
+// import java.util.concurrent._
+// import scala.concurrent._
+import upickle.default._
+import os._
+import com.neurone.neuroneconector.db.collections._
+import java.util.UUID.randomUUID
 
-/**Endpoints declaration**/
+/** Endpoints declaration* */
 
 // Singleton object to provides endpoints functions
 package object endpoints {
-
+  val logFile = "latency"
   /*Package*/
+  def createLog(
+      init: Long,
+      end: Long,
+      metric: String,
+      username: String,
+      uuid: String
+  ) = {
+    val dif = end - init
+    val log = MetricLog(init, end, dif, metric, username,uuid)
+    implicit val metricRW = upickle.default.macroRW[MetricLog]
+    val json: Json = Json.obj(
+      ("init", Json.fromLong(init)),
+      ("end", Json.fromLong(end)),
+      ("dif", Json.fromLong(dif)),
+      ("metric", Json.fromString(metric)),
+      ("username", Json.fromString(username)),
+      ("uuid",Json.fromString(uuid))
+    )
+    val fileName = logFile + "-" + metric + ".json"
+    val logs: Seq[MetricLog] = {
+      if (os.exists(os.pwd / "logs"/fileName)) {
 
+        val jsonString = os.read(os.pwd /"logs"/ fileName)
+        upickle.default.read[Seq[MetricLog]](jsonString)
+      } else {
+        List()
+      }
+    }
+
+    val logsJson = logs :+ log
+    val data = upickle.default.write(logsJson)
+    os.write.over(os.pwd / "logs"/ fileName, data,createFolders= true)
+  }
+  val logResults =
+    (results: Seq[Tuple4[String, Double, Long, Long]], metricName: String) => {
+      val uuid=randomUUID().toString
+      results.map(result =>
+        createLog(result._3, result._4, metricName, result._1,uuid)
+      )
+    }
   //Method to package Tuple[String,Double] to circe.Json object
   def packageResult(username: String, metricName: String, result: Double) = {
     val json: Json = Json.obj(
@@ -32,7 +75,7 @@ package object endpoints {
   }
   // Function to package a Seq[Tuple2[String,Double]] to circe.Json object
   val packageResults =
-    (results: Seq[Tuple2[String, Double]], metricName: String) => {
+    (results: Seq[Tuple4[String, Double, Long, Long]], metricName: String) => {
       val jsonResults: Seq[Json] =
         results.map(result => packageResult(result._1, metricName, result._2))
       jsonResults
@@ -66,9 +109,8 @@ package object endpoints {
           limitTime.getOrElse(30)
         )(metrics)
       val jsonResults: Seq[Json] =
-        results.zipWithIndex.map(
-          result =>
-            packageResult(result._1._1, metrics(result._2), result._1._2)
+        results.zipWithIndex.map(result =>
+          packageResult(result._1._1, metrics(result._2), result._1._2)
         )
       jsonResults.map(metric => println(metric))
       Ok(jsonResults)
@@ -81,17 +123,18 @@ package object endpoints {
   val getTotalCoverEndpoint = get(
     "totalcover" :: standardParamsForOneUser
   ) { (username: String, ti: Option[Int], tf: Option[Int]) =>
-    FuturePool.unboundedPool{
+    FuturePool.unboundedPool {
 
-      val totalCover: Tuple2[String, Double] =
+      val totalCover: Tuple4[String, Double, Long, Long] =
         getTotalCoverService(ti)(tf)(username)
       val jsonResult: Json =
         packageResult(username, "totalcover", totalCover._2)
+
       Ok(jsonResult)
     }
- 
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   // Get->/totalcover?ti=1&tf=10
@@ -101,10 +144,14 @@ package object endpoints {
       FuturePool.unboundedPool {
         val results = getTotalCoverServiceForAll(ti, tf)
         val jsonResults = packageResults(results, "totalcover")
+        Future {
+          logResults(results, "totalcover")
+        }
         Ok(jsonResults)
+
       }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   // BmRelevant
@@ -115,7 +162,7 @@ package object endpoints {
     "bmrelevant" :: standardParamsForOneUser
   ) { (username: String, ti: Option[Int], tf: Option[Int]) =>
     FuturePool.unboundedPool {
-      val bmrelevant: Tuple2[String, Double] =
+      val bmrelevant: Tuple4[String, Double, Long, Long] =
         getActiveOrRelevantBmService(ti)(tf)(Option(true))(username)
       val jsonResult = packageResult(username, "bmrelevant", bmrelevant._2)
       Ok(jsonResult)
@@ -129,10 +176,13 @@ package object endpoints {
       FuturePool.unboundedPool {
         val results = getRelevantOrActiveBmServiceForAll(ti, tf, Option(true))
         val jsonResults = packageResults(results, "bmrelevant")
+        Future {
+          logResults(results, "bmrelevant")
+        }
         Ok(jsonResults)
       }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   // Precision
@@ -143,13 +193,13 @@ package object endpoints {
     "precision" :: standardParamsForOneUser
   ) { (username: String, ti: Option[Int], tf: Option[Int]) =>
     FuturePool.unboundedPool {
-      val precision: Tuple2[String, Double] =
+      val precision: Tuple4[String, Double, Long, Long] =
         getPrecisionService(ti)(tf)(username)
       val jsonResult = packageResult(username, "precision", precision._2)
       Ok(jsonResult)
     }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/precision?ti=1&tf=10
@@ -159,11 +209,14 @@ package object endpoints {
       FuturePool.unboundedPool {
         val results = getPrecisionServiceForAll(ti, tf)
         val jsonResults = packageResults(results, "precision")
+        Future {
+          logResults(results, "precision")
+        }
         Ok(jsonResults)
       }
 
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   //Recall
@@ -180,14 +233,15 @@ package object endpoints {
         relevants: Option[Double]
     ) =>
       FuturePool.unboundedPool {
-        val recall: Tuple2[String, Double] =
+        val recall: Tuple4[String, Double, Long, Long] =
           getRecallService(ti)(tf)(relevants.getOrElse(3.0))(username)
         val jsonResult = packageResult(username, "recall", recall._2)
+
         Ok(jsonResult)
 
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/recall?ti=1&tf=10
@@ -200,8 +254,8 @@ package object endpoints {
       val jsonResults = packageResults(results, "recall")
       Ok(jsonResults)
     }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
   //F1-Fscore
 
@@ -217,13 +271,13 @@ package object endpoints {
         relevants: Option[Double]
     ) =>
       FuturePool.unboundedPool {
-        val f1: Tuple2[String, Double] =
+        val f1: Tuple4[String, Double, Long, Long] =
           getFScoreService(ti)(tf)(relevants.getOrElse(3.0))(username)
         val jsonResult = packageResult(username, "f1", f1._2)
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/f1?ti=1&tf=10
@@ -236,8 +290,8 @@ package object endpoints {
       val jsonResults = packageResults(results, "f1")
       Ok(jsonResults)
     }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   // UsfCover
@@ -259,8 +313,8 @@ package object endpoints {
         val jsonResult = packageResult(username, "usfcover", usfcover._2)
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/usfcover?ti=1&tf=10
@@ -273,8 +327,8 @@ package object endpoints {
       val jsonResults = packageResults(results, "usfcover")
       Ok(jsonResults)
     }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //NumQueries
@@ -289,8 +343,8 @@ package object endpoints {
         Ok(jsonResult)
 
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/numqueries?ti=1&tf=10
@@ -303,8 +357,8 @@ package object endpoints {
         Ok(jsonResults)
 
       }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   //CoverageEffectiveness
@@ -333,8 +387,8 @@ package object endpoints {
         )
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/ceffectiveness?ti=1&tf=10
@@ -355,8 +409,8 @@ package object endpoints {
           val jsonResults = packageResults(results, "ceffectiveness")
           Ok(jsonResults)
         }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   //QueryEffectiveness
@@ -385,8 +439,8 @@ package object endpoints {
         )
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/qeffectiveness?ti=1&tf=10
@@ -405,8 +459,8 @@ package object endpoints {
         val jsonResults = packageResults(results, "qeffectiveness")
         Ok(jsonResults)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //ActiveBm
@@ -416,14 +470,14 @@ package object endpoints {
   val getActiveBmEndpoint = get("activebm" :: standardParamsForOneUser) {
     (username: String, ti: Option[Int], tf: Option[Int]) =>
       FuturePool.unboundedPool {
-        val activeBm: Tuple2[String, Double] =
+        val activeBm: Tuple4[String, Double, Long, Long] =
           getActiveOrRelevantBmService(ti)(tf)(None)(username)
         val jsonResult = packageResult(username, "activebm", activeBm._2)
         Ok(jsonResult)
 
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/activebm?ti=1&tf=10
@@ -435,8 +489,8 @@ package object endpoints {
         val jsonResults = packageResults(results, "activebm")
         Ok(jsonResults)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   // SearchScore
@@ -450,8 +504,8 @@ package object endpoints {
         val jsonResult = packageResult(username, "score", searchScore._2)
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/score?ti=1&tf=10
@@ -463,8 +517,8 @@ package object endpoints {
         val jsonResults = packageResults(results, "score")
         Ok(jsonResults)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   // TotalPagestay
@@ -477,10 +531,11 @@ package object endpoints {
         val totalPageStay = getTotalPageStayService(ti)(tf)(username)
         val jsonResult =
           packageResult(username, "pagestay", totalPageStay._2)
+
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/pagestay?ti=1&tf=10
@@ -490,10 +545,13 @@ package object endpoints {
       FuturePool.unboundedPool {
         val results = getTotalPageStayServiceForAll(ti, tf)
         val jsonResults = packageResults(results, "pagestay")
+                Future {
+          logResults(results, "pagestay")
+        }
         Ok(jsonResults)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Mousecliks
@@ -507,8 +565,8 @@ package object endpoints {
         val jsonResult = packageResult(username, "mouseclicks", mouseClicks._2)
         Ok(mouseClicks)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/mouseclicks?ti=1&tf=10
@@ -520,8 +578,8 @@ package object endpoints {
         val jsonResults = packageResults(results, "mouseclicks")
         Ok(jsonResults)
       }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   // Mousecoordinates
@@ -537,8 +595,8 @@ package object endpoints {
             packageResult(username, "mousecoordinates", mouseCoordinates._2)
           Ok(jsonResult)
         }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   //Get->/mousecoordinates?ti=1&tf=10
@@ -553,8 +611,8 @@ package object endpoints {
           //println("terminado mousecoordinates")
           Ok(jsonResults)
         }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   // ScrollMoves
@@ -568,8 +626,8 @@ package object endpoints {
         val jsonResult = packageResult(username, "scrollmoves", scrollMoves._2)
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/scrollmoves?ti=1&tf=10
@@ -581,8 +639,8 @@ package object endpoints {
         val jsonResults = packageResults(results, "scrollmoves")
         Ok(jsonResults)
       }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   //TotalModQuery
@@ -597,8 +655,8 @@ package object endpoints {
           packageResult(username, "totalmodquery", totalModQuery._2)
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/modquery?ti=1&tf=10
@@ -610,8 +668,8 @@ package object endpoints {
         val jsonResults = packageResults(results, "totalmodquery")
         Ok(jsonResults)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
   // WritingTime
 
@@ -624,8 +682,8 @@ package object endpoints {
         val jsonResult = packageResult(username, "writingtime", writingTime._2)
         Ok(jsonResult)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //Get->/writingtime?ti=1&tf=10
@@ -633,13 +691,16 @@ package object endpoints {
   val getWritingTimeForAllEndpoint = get("writingtime" :: standardParams) {
     (ti: Option[Int], tf: Option[Int]) =>
       FuturePool.unboundedPool {
-        
+
         val results = getWritingTimeServiceForAll(ti, tf)
         val jsonResults = packageResults(results, "writingtime")
+        // Future {
+          logResults(results, "writingtime")
+        // }
         Ok(jsonResults)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //QueryEntropy
@@ -656,8 +717,8 @@ package object endpoints {
             packageResult(username, "entropy", averageQueryEntropy._2)
           Ok(jsonResult)
         }
-    }.handle {
-      case e: Error.NotPresent => BadRequest(e)
+    }.handle { case e: Error.NotPresent =>
+      BadRequest(e)
     }
 
   //Get->/entropy?ti=1&tf=10
@@ -669,8 +730,8 @@ package object endpoints {
         val jsonResults = packageResults(results, "entropy")
         Ok(jsonResults)
       }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
   }
 
   //InitStageTime
@@ -683,9 +744,9 @@ package object endpoints {
       val jsonResult = packageResult(username, "inittime", init._2)
       Ok(jsonResult)
     }
-  }.handle {
-    case e: Error.NotPresent => BadRequest(e)
-    
+  }.handle { case e: Error.NotPresent =>
+    BadRequest(e)
+
   }
 
   // This value constains all endpoints

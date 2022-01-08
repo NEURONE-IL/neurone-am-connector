@@ -19,6 +19,9 @@ lazy val root = (project in file("."))
       "com.typesafe.akka" %% "akka-actor" % "2.5.22",
       "org.scalaz" %% "scalaz-core" % "7.2.27",
        "com.typesafe" % "config" % "1.4.0",
+       "com.lihaoyi" %% "upickle" % "0.9.5",
+       "com.lihaoyi" %% "os-lib" % "0.8.0",
+
     )
     
     )

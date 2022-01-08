@@ -76,7 +76,7 @@ package object reductions {
   ): Seq[Tuple2[Double, Double]] = {
 
     queriesInterval.zipWithIndex.map(query => {
-      println(query)
+      // println(query)
 
       val finalTime =
         if (query._2 == 0) 0 else queriesInterval(query._2 - 1).localTimestamp
@@ -195,7 +195,7 @@ package object reductions {
     val queryEntropy = statesProbabilities.foldLeft(0.0.toDouble: Double)(
       (acumulator, p) => acumulator - p * log2(p)
     )
-    println(queryEntropy)
+    // println(queryEntropy)
     queryEntropy
   }
 

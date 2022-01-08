@@ -30,3 +30,13 @@ case class Keystrokes(
     keyCode: Int,
     localTimestamp: Double
 )
+
+case class MetricLog(
+
+    init: Long,
+    end: Long,
+    latency: Long,
+    metric: String,
+    username: String,
+    uuid: String
+)

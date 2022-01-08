@@ -62,15 +62,23 @@ package object simple {
       keyStrokes: Seq[Keystrokes],
       username: String
   ) = {
+
+    // println("Get Writting time for "+username)
     val searchIntervalsWithEnterAndExit = filterWithPageEnterAndExit(
       searchIntervals
     )
+    // println("searchInterval",searchIntervalsWithEnterAndExit)
     val orderedSearchIntervals = getIntervals(searchIntervalsWithEnterAndExit)
+    // println("ordered search intervals")
     val queriesAndIntervals =
       joinIntervalsAndQueries(queries, orderedSearchIntervals)
+    // println("queries and intervals")
     val notEmptyIntervals = filterEmptyIntervals(queriesAndIntervals)
+    // println("not empty intervals")
     val intervalWritingTime =
       getIntervalWritingTime(notEmptyIntervals, keyStrokes, username)
+    // println("interval writting time")
+    //   println("interval",intervalWritingTime)
     val totalWritingTime = sumElements(intervalWritingTime)
 
     totalWritingTime
