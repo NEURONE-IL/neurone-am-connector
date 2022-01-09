@@ -32,7 +32,7 @@ package object endpoints {
       uuid: String
   ) = {
     val dif = end - init
-    val log = MetricLog(init, end, dif, metric, username,uuid)
+    val log = MetricLog(init, end, dif, metric, username, uuid)
     implicit val metricRW = upickle.default.macroRW[MetricLog]
     val json: Json = Json.obj(
       ("init", Json.fromLong(init)),
@@ -40,13 +40,13 @@ package object endpoints {
       ("dif", Json.fromLong(dif)),
       ("metric", Json.fromString(metric)),
       ("username", Json.fromString(username)),
-      ("uuid",Json.fromString(uuid))
+      ("uuid", Json.fromString(uuid))
     )
     val fileName = logFile + "-" + metric + ".json"
     val logs: Seq[MetricLog] = {
-      if (os.exists(os.pwd / "logs"/fileName)) {
+      if (os.exists(os.pwd / "logs" / fileName)) {
 
-        val jsonString = os.read(os.pwd /"logs"/ fileName)
+        val jsonString = os.read(os.pwd / "logs" / fileName)
         upickle.default.read[Seq[MetricLog]](jsonString)
       } else {
         List()
@@ -55,17 +55,21 @@ package object endpoints {
 
     val logsJson = logs :+ log
     val data = upickle.default.write(logsJson)
-    os.write.over(os.pwd / "logs"/ fileName, data,createFolders= true)
+    os.write.over(os.pwd / "logs" / fileName, data, createFolders = true)
   }
   val logResults =
     (results: Seq[Tuple4[String, Double, Long, Long]], metricName: String) => {
-      val uuid=randomUUID().toString
+      val uuid = randomUUID().toString
       results.map(result =>
-        createLog(result._3, result._4, metricName, result._1,uuid)
+        createLog(result._3, result._4, metricName, result._1, uuid)
       )
     }
   //Method to package Tuple[String,Double] to circe.Json object
-  def packageResult(username: String, metricName: String, result: Double) = {
+  def packageResult(
+      username: String,
+      metricName: String,
+      result: Double,
+  ) = {
     val json: Json = Json.obj(
       ("username", Json.fromString(username)),
       ("value", Json.fromDoubleOrNull(result)),
@@ -73,11 +77,52 @@ package object endpoints {
     )
     json
   }
+    def packageResultWithLatency(
+      username: String,
+      metricName: String,
+      result: Double,
+      init: Long,
+      end: Long,
+      uuid: String
+  ) = {
+    val json: Json = Json.obj(
+      ("username", Json.fromString(username)),
+      ("value", Json.fromDoubleOrNull(result)),
+      ("type", Json.fromString(metricName)),
+      ("latency",Json.fromLong(end-init)),
+      ("uuid",Json.fromString(uuid))
+    )
+    json
+  }
+    val packageResultsWithLatency =
+    (results: Seq[Tuple4[String, Double, Long, Long]], metricName: String) => {
+      val uuid = randomUUID().toString
+      val jsonResults: Seq[Json] =
+        results.map(result =>
+          packageResultWithLatency(
+            result._1,
+            metricName,
+            result._2,
+            result._3,
+            result._4,
+            uuid
+          )
+        )
+      jsonResults
+    }
+
   // Function to package a Seq[Tuple2[String,Double]] to circe.Json object
   val packageResults =
     (results: Seq[Tuple4[String, Double, Long, Long]], metricName: String) => {
+      val uuid = randomUUID().toString
       val jsonResults: Seq[Json] =
-        results.map(result => packageResult(result._1, metricName, result._2))
+        results.map(result =>
+          packageResult(
+            result._1,
+            metricName,
+            result._2
+          )
+        )
       jsonResults
     }
 
@@ -143,10 +188,9 @@ package object endpoints {
     get("totalcover" :: standardParams) { (ti: Option[Int], tf: Option[Int]) =>
       FuturePool.unboundedPool {
         val results = getTotalCoverServiceForAll(ti, tf)
-        val jsonResults = packageResults(results, "totalcover")
-        Future {
-          logResults(results, "totalcover")
-        }
+        val jsonResults = packageResultsWithLatency(results, "totalcover")
+        // logResults(results, "totalcover")
+
         Ok(jsonResults)
 
       }
@@ -175,10 +219,9 @@ package object endpoints {
     get("bmrelevant" :: standardParams) { (ti: Option[Int], tf: Option[Int]) =>
       FuturePool.unboundedPool {
         val results = getRelevantOrActiveBmServiceForAll(ti, tf, Option(true))
-        val jsonResults = packageResults(results, "bmrelevant")
-        Future {
-          logResults(results, "bmrelevant")
-        }
+        val jsonResults = packageResultsWithLatency(results, "bmrelevant")
+        // logResults(results, "bmrelevant")
+
         Ok(jsonResults)
       }
     }.handle { case e: Error.NotPresent =>
@@ -208,10 +251,9 @@ package object endpoints {
     get("precision" :: standardParams) { (ti: Option[Int], tf: Option[Int]) =>
       FuturePool.unboundedPool {
         val results = getPrecisionServiceForAll(ti, tf)
-        val jsonResults = packageResults(results, "precision")
-        Future {
-          logResults(results, "precision")
-        }
+        val jsonResults = packageResultsWithLatency(results, "precision")
+        // logResults(results, "precision")
+
         Ok(jsonResults)
       }
 
@@ -544,10 +586,9 @@ package object endpoints {
     (ti: Option[Int], tf: Option[Int]) =>
       FuturePool.unboundedPool {
         val results = getTotalPageStayServiceForAll(ti, tf)
-        val jsonResults = packageResults(results, "pagestay")
-                Future {
-          logResults(results, "pagestay")
-        }
+        val jsonResults = packageResultsWithLatency(results, "pagestay")
+        // logResults(results, "pagestay")
+
         Ok(jsonResults)
       }
   }.handle { case e: Error.NotPresent =>
@@ -693,10 +734,9 @@ package object endpoints {
       FuturePool.unboundedPool {
 
         val results = getWritingTimeServiceForAll(ti, tf)
-        val jsonResults = packageResults(results, "writingtime")
-        // Future {
-          logResults(results, "writingtime")
-        // }
+        val jsonResults = packageResultsWithLatency(results, "writingtime")
+        // logResults(results, "writingtime")
+
         Ok(jsonResults)
       }
   }.handle { case e: Error.NotPresent =>
